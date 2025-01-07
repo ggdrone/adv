@@ -22,6 +22,7 @@ SDL_Texture* stage_backgrounds[NUM_STAGES] = {NULL};
 // Fonts, fonts, fonts
 TTF_Font* title_font = NULL;
 TTF_Font* gameplay_font = NULL;
+SDL_mutex* font_mutex = NULL;
 
 // Font effects
 int           last_frame   = 0;
@@ -107,24 +108,31 @@ int initWindow(void)
 
 // Hopeless font-loader
 int loadFont() {
+  SDL_LockMutex(font_mutex);
 
   printf("Loading title font...\n");
-    title_font = TTF_OpenFont("./graphics/zalgo.ttf", 92);
-    if (!title_font) {
-        fprintf(stderr, "Could not load title font from. Reason: %s\n", TTF_GetError());
-        return FALSE;
-    }
-    printf("Title font loaded successfully %p\n", (void*)title_font);
+  title_font = TTF_OpenFont("./graphics/zalgo.ttf", 92);
+  if (!title_font) {
+    fprintf(stderr, "Could not load title font from. Reason: %s\n", TTF_GetError());
+    SDL_UnlockMutex(font_mutex);
+    return FALSE;
+  }
+  printf("Title font loaded successfully %p\n", (void*)title_font);
+   
+  printf("Loading gameplay font...\n");
+  gameplay_font = TTF_OpenFont("./graphics/zalgo.ttf", 32);
+  if (!gameplay_font) {
+    fprintf(stderr, "Could not load gameplay font from. Reason: %s\n", TTF_GetError());
+    TTF_CloseFont(title_font);
+    title_font = NULL;
+    SDL_UnlockMutex(font_mutex);
+    return FALSE;
+  }
+  printf("Gameplay font loaded successfully: %p\n", (void*)gameplay_font);
 
-    printf("Loading gameplay font...\n");
-    gameplay_font = TTF_OpenFont("./graphics/zalgo.ttf", 32);
-    if (!gameplay_font) {
-        fprintf(stderr, "Could not load gameplay font from. Reason: %s\n", TTF_GetError());
-        return FALSE;
-    }
-    printf("Gameplay font loaded successfully: %p\n", (void*)gameplay_font);
+  SDL_UnlockMutex(font_mutex);
 
-    return TRUE;
+  return TRUE;
 }
 
 // Initial game setup, runs once
@@ -168,6 +176,14 @@ int setup()
       return FALSE;
     }
   }
+  
+  printf("Trying to pass SDL_CreateMutex to variable font_mutex");
+  font_mutex = SDL_CreateMutex();
+  if (font_mutex == NULL) {
+    fprintf(stderr, "Could not create mutex: %s\n", SDL_GetError());
+    return FALSE;
+  }
+  printf("Declaration off SDL_CreateMutex OK");
 
   if (!loadFont())
   {
@@ -261,79 +277,90 @@ void renderText(SDL_Renderer* renderer, const char* text, int x, int y, SDL_Colo
 // Hopeless renderer
 int render()
 {
-  if (!title_font || !gameplay_font) {
-    fprintf(stderr, "title_font is NULL in renderer.\n");
-    return FALSE;
-  }
+    SDL_RenderClear(renderer);
 
-  SDL_RenderClear(renderer);
+    SDL_Color malachite= {0, 255, 65, 255};
+    SDL_Color islamic_green= {0, 143, 17, 255};
+    SDL_Color dark_green= {0, 59, 0, 255};
+    SDL_Color yellow= {238, 210, 2, 255};
 
-  SDL_Color malachite     = {0, 255, 65, 255};
-  SDL_Color islamic_green = {0, 143, 17, 255};
-  SDL_Color dark_green    = {0, 59, 0, 255};
-  SDL_Color yellow        = {238, 210, 2, 255};
-  
-  if (game_mode == TITLE_SCREEN) {
-    SDL_RenderCopy(renderer, texture, NULL, NULL);;
-    renderText(renderer, "cygnus ... x-1", 460, 110, dark_green, title_font);
-    renderText(renderer, "cygnus ... x-1", 455, 105, islamic_green, title_font);
-    renderText(renderer, "cygnus ... x-1", 445, 95, yellow, title_font);
-    renderText(renderer, "cygnus ... x-1", 450, 100, malachite, title_font);
-    }
-
-    // Effect wizardry for flickering text
-    delta_time = (SDL_GetTicks() - last_frame) / 1000.0;
-    last_frame = SDL_GetTicks();
-    // Makes for not to fast, not to slow flickering
-    effect_inter = delta_time * 0.666;
-
-    if (last_frame - last_effect >= effect_inter)
-      {
-	effect_state = !effect_state;
-	last_effect  = last_frame;
-      }
-  
-    if (effect_state) {
-	renderText(renderer, "0001 ....", 108, 480, dark_green, title_font);
-	renderText(renderer, "0001 ....", 100, 485, islamic_green, title_font);
-	renderText(renderer, "0001 ....", 91, 490, malachite, title_font);
-	renderText(renderer, ".... 0010", 879, 480, dark_green, title_font);
-	renderText(renderer, ".... 0010", 876, 485, islamic_green, title_font);
-	renderText(renderer, ".... 0010", 867, 490, malachite, title_font);
+    if (game_mode == TITLE_SCREEN) {
+        SDL_RenderCopy(renderer, texture, NULL, NULL);
 	
+        SDL_LockMutex(font_mutex);
+	// Check for title_font before rendering
+        if (title_font != NULL) {
+            renderText(renderer, "cygnus ... x-1", 460, 110, dark_green, title_font);
+            renderText(renderer, "cygnus ... x-1", 455, 105, islamic_green, title_font);
+            renderText(renderer, "cygnus ... x-1", 445, 95, yellow, title_font);
+            renderText(renderer, "cygnus ... x-1", 450, 100, malachite, title_font);
+
+            // Effect wizardry for flickering text
+            delta_time = (SDL_GetTicks() - last_frame) / 1000.0;
+            last_frame = SDL_GetTicks();
+            // Makes for not to fast, not to slow flickering
+            effect_inter = delta_time * 0.666;
+
+            if (last_frame - last_effect >= effect_inter)
+            {
+                effect_state = !effect_state;
+                last_effect = last_frame;
+            }
+
+            if (effect_state) {
+                renderText(renderer, "0001 ....", 108, 480, dark_green, title_font);
+                renderText(renderer, "0001 ....", 100, 485, islamic_green, title_font);
+                renderText(renderer, "0001 ....", 91, 490, malachite, title_font);
+                renderText(renderer, ".... 0010", 879, 480, dark_green, title_font);
+                renderText(renderer, ".... 0010", 876, 485, islamic_green, title_font);
+                renderText(renderer, ".... 0010", 867, 490, malachite, title_font);
+            }
+        } else {
+            fprintf(stderr, "title_font is NULL in render().\n");
+        }
+	SDL_UnlockMutex(font_mutex);
+
     } else if (game_mode == PLAYING) {
-      if (current_stage - 1 < NUM_STAGES &&
-	  stage_backgrounds[current_stage - 1]) {
+        if (current_stage - 1 < NUM_STAGES &&
+            stage_backgrounds[current_stage - 1]) {
 
-	SDL_RenderCopy(renderer,
-		       stage_backgrounds[current_stage - 1],
-		       NULL,
-		       NULL);
-	
-	char stage_text[50];
-	char points_text[50];
+            SDL_RenderCopy(renderer,
+                           stage_backgrounds[current_stage - 1],
+                           NULL,
+                           NULL);
 
-	sprintf(stage_text, "Stage: %d", current_stage);
-	sprintf(points_text, "Points: %d .... %d", player_points, points_needed);
+            char stage_text[50];
+            char points_text[50];
 
-	renderText(renderer, stage_text, 5, 10, malachite, gameplay_font);
-	renderText(renderer, points_text, 10, 50, malachite, gameplay_font);
+            sprintf(stage_text, "Stage: %d", current_stage);
+            sprintf(points_text, "Points: %d .... %d", player_points, points_needed);
 
-    } else {
-      fprintf(stderr, "Invalid stage or missing texture for stage %d\n",
-	      current_stage);
+	    SDL_LockMutex(font_mutex);
+            // Check for gameplay_font before rendering
+            if (gameplay_font != NULL) {
+                renderText(renderer, stage_text, 5, 10, malachite, gameplay_font);
+                renderText(renderer, points_text, 10, 50, malachite, gameplay_font);
+            } else {
+                fprintf(stderr, "gameplay_font is NULL in render().\n");
+            }
+	    SDL_UnlockMutex(font_mutex);
+        } else {
+            fprintf(stderr, "Invalid stage or missing texture for stage %d\n",
+                    current_stage);
+        }
     }
-  }
-    
-  SDL_RenderPresent(renderer);
-  return TRUE;
+
+    SDL_RenderPresent(renderer);
+    return TRUE;
 }
 
 // Destroy everything created
 void destroyWin()
 {
+  SDL_LockMutex(font_mutex);
   if (gameplay_font) TTF_CloseFont(gameplay_font);
   if (title_font) TTF_CloseFont(title_font);
+  SDL_UnlockMutex(font_mutex);
 
   if (texture) SDL_DestroyTexture(texture);
   for (int i = 0; i < NUM_STAGES; i++) {
@@ -347,6 +374,7 @@ void destroyWin()
 
   TTF_Quit();
   SDL_Quit();
+  SDL_DestroyMutex(font_mutex);
 	    
 }
 
