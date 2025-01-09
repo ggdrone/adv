@@ -1,4 +1,0 @@
-#define TRUE 1
-#define FALSE 0
-#define WINDOW_W 1200
-#define WINDOW_H 600
