@@ -232,55 +232,56 @@ int render(SDL_Renderer* renderer, SDL_Texture* texture, SDL_Color* colors, TTF_
 }
 
 // Cleanup after use
-void cleanup(SDL_Window* window, SDL_Renderer* renderer, SDL_Texture* texture,
-            SDL_Texture* stage_backgrounds[], TTF_Font* fonts[], int num_fonts) {
-
+void cleanup(SDL_Window* window, SDL_Renderer* renderer, SDL_Texture* texture, SDL_Texture* stage_backgrounds[], TTF_Font* fonts[], int num_fonts) {
   printf("\n---- Entering cleanup ----\n");
 
-  if (texture) {
-      printf("Destroying texture: texture.\n");
-      SDL_DestroyTexture(texture);
-  } else {
-      printf("Texture (texture) is already NULL.\n");
-  }
-
+  printf("Killing stage backgrounds...\n");
   for (int i = 0; i < NUM_STAGES; i++) {
-      if (stage_backgrounds[i]) {
-	  printf("Destroying texture stage_background[%d].\n", i);
-	  SDL_DestroyTexture(stage_backgrounds[i]);
-      } else {
-	  printf("Texture stage_background[%d] is already NULL.\n", i);
-      }
+    if (stage_backgrounds[i]) {
+      SDL_DestroyTexture(stage_backgrounds[i]);
+      printf("Success! Killed stage background %d\n", i + 1);
+    } else {
+      printf("Stage background %d already NULL.\n", i + 1);
+    }
   }
 
+  printf("Killing title background...");
+  if (texture) {
+    SDL_DestroyTexture(texture);
+    printf("Success! Killed title background\n");
+  } else {
+    printf("Title background already NULL.\n");
+  }
+
+  printf("Killing fonts...\n");
   for (int i = 0; i < num_fonts; i++) {
-      if (fonts[i]) {
-	  printf("Destroying font fonts[%d].\n", i);
-	  TTF_CloseFont(fonts[i]);
-      } else {
-	  printf("Font fonts[%d] is already NULL.\n", i);
-      }
+    if (fonts[i]) {
+      TTF_CloseFont(fonts[i]);
+      printf("Success! Killed font %d\n", i + 1);
+    } else {
+      printf("Font %d already NULL.\n", i + 1);
+    }
   }
 
+  printf("Killing renderer...");
   if (renderer) {
-      printf("Destroying renderer.\n");
-      SDL_DestroyRenderer(renderer);
+    SDL_DestroyRenderer(renderer);
+    printf("Success! Killed renderer\n");
   } else {
-      printf("Renderer already NULL.\n");
+    printf("SDL Renderer already NULL.\n");
   }
 
+  printf("Killing window...");
   if (window) {
-      printf("Destroying window.\n");
-      SDL_DestroyWindow(window);
+    SDL_DestroyWindow(window);
+    printf("Success! Killed window\n");
   } else {
-      printf("Window already NULL.\n");
+    printf("SDL Window already NULL.\n");
   }
 
-  printf("Quitting TTF.\n");
   TTF_Quit();
-  printf("Quitting SDL.\n");
   SDL_Quit();
-  printf("Cleanup complete!\n");
+  printf("All cleaned up! Quitting.\n");
 }
 
 int main(void) {
@@ -323,7 +324,7 @@ int main(void) {
       }
   }
 
-  printf("Exiting game loop...\n");
+  printf("Exiting game loop.\n");
   cleanup(window, renderer, texture, stage_backgrounds, fonts, NUM_FONTS);
   return EXIT_SUCCESS;
 }
